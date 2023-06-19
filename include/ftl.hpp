@@ -6,6 +6,7 @@
 #include <iostream>
 #include <ostream>
 #include <string>
+#include <utility>
 
 #define PANIC(ERROR)                 \
     std::cerr << ERROR << std::endl; \
@@ -17,17 +18,13 @@ namespace ftl {
         err.descrition();
     };
 
-    template<typename F, typename Ret, typename ...Args>
-    concept Fn = requires(F f, Args ...args) {
-        { f(args...) } -> std::same_as<Ret>;
-    };
-
     struct str {
         using value_type = const char;
         using iterator = const char *;
         using reverse_iterator = const char *;
         using size_type = size_t;
 
+        constexpr str() {}
         constexpr str(const char *begin, size_type size) :
             begin_iter(begin),
             end_iter(begin + size) {}
@@ -46,32 +43,41 @@ namespace ftl {
         constexpr value_type &operator[](size_type idx) {
             return begin_iter[idx];
         }
-        bool operator==(str &other) {
+        bool operator==(str &other) noexcept {
             for (auto &[i, j] : { *this, other }) {
                 if (*i != *j) return false;
             }
             return true;
+        }
+        friend std::ostream &operator<<(std::ostream &out, str self) {
+            return out.write(self.begin_iter, self.end_iter - self.begin_iter);
         }
     private:
         iterator begin_iter;
         iterator end_iter;
     };
 
-    template<typename T, typename E>
+    template<typename T = void, typename E = void>
     struct Result;
-    template<typename T>
+    template<typename T = void>
     struct Option;
 
     template<typename T>
-    constexpr Option<T> Some(T Some);
+    constexpr Option<T> Some(T) noexcept;
+    constexpr Option<> None() noexcept;
+
+    template<typename T>
+    constexpr Result<T, void> Ok(T) noexcept;
+    template<typename E>
+    constexpr Result<void, E> Err(E) noexcept;
 
     template<>
-    struct Result<void, void> {
+    struct Result<> {
         enum class Tag {
             Ok,
             Err,
         } tag;
-        friend std::ostream &operator<<(std::ostream &out, Tag self) {
+        friend std::ostream &operator<<(std::ostream &out, Tag self) noexcept {
             switch (self) {
             case Tag::Ok:
                 return out << "Ok";
@@ -81,67 +87,25 @@ namespace ftl {
         }
     };
 
-    template<typename T, typename E>
-    struct
-    [[nodiscard("`Result` may be an `Err` variant, which should be handled")]]
-    Result : Result<void, void> {
-        constexpr Result(Result<T, void> &&temp) :
-            Result<void, void>{ Tag::Ok },
-            Ok(temp.Ok) { }
-        constexpr Result(Result<void, E> &&temp) :
-            Result<void, void>{ Tag::Err },
-            Err(temp.unwrap_err()) { }
-        ~Result() {
-            switch (tag) {
-            case Tag::Ok:
-                Ok.~T();
-                break;
-            case Tag::Err:
-                Err.~E();
-                break;
-            }
-        }
-        T &unwrap() {
-            switch (tag) {
-            case Tag::Ok:
-                return Ok;
-            case Tag::Err:
-                PANIC("Tried to unwrap an Error, baka");
-            }
-        }
-        E &unwrap_err() {
-            switch (tag) {
-            case Tag::Ok:
-                PANIC("Not an error, you fucking idiot");
-            case Tag::Err:
-                return Err;
-            }
-        }
-        friend std::ostream &operator<<(std::ostream &out, Result &self) {
-            out << self.tag << '(';
-            switch (self.tag) {
-            case decltype(self.tag)::Ok:
-                return out << self.Ok << ')';
-            case decltype(self.tag)::Err:
-                return out << self.Err << ')';
-            }
-        }
-    private:
-        union {
-            T Ok;
-            E Err;
-        };
+    template<typename T>
+    struct Result<T, void> : Result<> {
+        constexpr static Tag tag = Tag::Ok;
+        T ok;
     };
 
     template<typename E>
     struct
     [[nodiscard("`Result` may be an `Err` variant, which should be handled")]]
-    Result<void, E> : Result<void, void> {
-        Result(Result<void, void> &&temp) :
-            Result<void, void> { temp } {}
-        Result(E Err) :
-            Result<void, void> { Tag::Err },
-            Err(Err) {}
+    Result<void, E> : Result<> {
+        constexpr Result(Result<> &&temp) : Result<>{ temp } {}
+        ~Result() {
+            if (is_err()) err.~E();
+        }
+        friend Result Err<E>(E err) noexcept {
+            Result temp(Result<>{ Result<>::Tag::Err });
+            temp.err = err;
+            return temp;
+        }
         void unwrap() {
             switch (tag) {
             case Tag::Ok:
@@ -150,77 +114,174 @@ namespace ftl {
                 PANIC("Tried to unwrap an error, baka");
             }
         }
-        E &unwrap_err() {
+        E unwrap_err() {
             switch (tag) {
             case Tag::Ok:
                 PANIC("Not an error, you fucking idiot");
             case Tag::Err:
-                return Err;
+                return err;
             }
         }
-        friend std::ostream &operator<<(std::ostream &out, Result &self) {
-            return out << self.tag << '(' << self.Err << ')';
+        bool is_ok() {
+            return tag == Tag::Ok;
+        }
+        bool is_err() {
+            return tag == Tag::Err;
+        }
+
+        friend std::ostream &operator<<(std::ostream &out, Result self) {
+            return out << self.tag << '(' << self.err << ')';
         }
     private:
-        E Err;
+        union {
+            E err;
+        };
+        Result(E err) :
+            Result<void, void> { Tag::Err },
+            err(err) {}
     };
-    template<typename T>
-    struct Result<T, void> : Result<void, void> {
-        constexpr static Tag tag = Tag::Ok;
-        T Ok;
+
+    template<typename T, typename E>
+    struct
+    [[nodiscard("`Result` may be an `Err` variant, which should be handled")]]
+    Result : Result<> {
+        constexpr Result(Result<T, void> &&temp) :
+            Result<>{ temp.tag },
+            ok(temp.ok) { }
+        constexpr Result(Result<void, E> &&temp) :
+            Result<>{ temp.tag },
+            err(temp.unwrap_err()) { }
+        ~Result() {
+            switch (tag) {
+            case Tag::Ok:
+                ok.~T();
+                break;
+            case Tag::Err:
+                err.~E();
+                break;
+            }
+        }
+        T unwrap() {
+            switch (tag) {
+            case Tag::Ok:
+                return ok;
+            case Tag::Err:
+                PANIC("Tried to unwrap an Error, baka");
+            }
+        }
+        E unwrap_err() {
+            switch (tag) {
+            case Tag::Ok:
+                PANIC("Not an error, you fucking idiot");
+            case Tag::Err:
+                return err;
+            }
+        }
+        bool is_ok() {
+            return tag == Tag::Ok;
+        }
+        bool is_err() {
+            return tag == Tag::Err;
+        }
+
+        template<typename F>
+        auto map(F op) {
+            if (is_ok()) return Result<decltype(op(ok)), E>(Ok(op(ok)));
+            else return Result<decltype(op(ok)), E>(Err(err));
+        }
+        template<typename F>
+        auto map_err(F op) {
+            if (is_ok()) return Result<T, decltype(op(err))>(Ok(ok));
+            else return Result<T, decltype(op(err))>(Err(op(err)));
+        }
+
+        friend std::ostream &operator<<(std::ostream &out, Result self) {
+            out << self.tag << '(';
+            switch (self.tag) {
+            case decltype(self.tag)::Ok:
+                return out << self.ok << ')';
+            case decltype(self.tag)::Err:
+                return out << self.err << ')';
+            }
+        }
+    private:
+        union {
+            T ok;
+            E err;
+        };
     };
 
     template<typename T>
-    constexpr Result<T, void> Ok(T Ok) {
-        return Result<T, void> { .Ok = Ok };
+    constexpr Result<T, void> Ok(T ok) noexcept {
+        return Result<T, void> { .ok = ok };
     }
-    constexpr Result<void, void> Ok() {
-        return Result<void, void> { Result<void, void>::Tag::Ok };
-    }
-
-    template<typename E>
-    constexpr Result<void, E> Err(E Err) {
-        return Result<void, E>(Err);
+    constexpr Result<void, void> Ok() noexcept {
+        return Result<> { Result<>::Tag::Ok };
     }
 
     template<>
-    struct Option<void> {
+    struct Option<> {
         enum class Tag {
             Some,
             None,
         } tag;
+        friend std::ostream &operator<<(std::ostream &out, Tag self) noexcept {
+            switch (self) {
+            case Tag::Some:
+                return out << "Some";
+            case Tag::None:
+                return out << "None";
+            }
+        }
     };
     template<typename T>
-    struct Option : Option<void> {
-        Option(Option<void> &&temp) :
+    struct Option : Option<> {
+        constexpr Option(Option<void> &&temp) :
             Option<void> { temp } {}
-        friend Option Some<T>(T);
-
-        T &unwrap() {
-            return Some;
+        ~Option() {
+            if (is_some()) some.~T();
         }
-        bool is_some() {
+
+        friend Option Some<T>(T Some) noexcept {
+            Option temp(Option<> { Option<>::Tag::Some });
+            temp.some = Some;
+            return temp;
+        }
+        T &unwrap() {
+            return some;
+        }
+        bool is_some() noexcept {
             return tag == Tag::Some;
         }
-        bool is_none() {
+        bool is_none() noexcept {
             return tag == Tag::None;
         }
-        template<typename E>
-        Result<T, E> ok_or_else(Fn<E> auto err) {
-            return is_some() ? Ok(Some) : Err(err());
+
+        template<typename F>
+        auto map(F op) -> Option<decltype(op(std::declval<T>()))> {
+            if (is_some()) return Some(op(some));
+            else return None();
+        }
+        template<typename F>
+        auto ok_or_else(F err) -> Result<T, decltype(err())> {
+            return is_some() ? Ok(some) : Err(err());
+        }
+
+        friend std::ostream &operator<<(std::ostream &out, Option self) {
+            out << self.tag;
+            if (self.is_some()) {
+                out << '(' << self.unwrap() << ')';
+            }
+            return out;
         }
     private:
-        T Some;
+        union {
+            T some;
+        };
     };
 
-    template<typename T>
-    constexpr Option<T> Some(T Some) {
-        Option<T> temp(Option<void> { Option<void>::Tag::Some });
-        temp.Some = Some;
-        return temp;
-    }
-    constexpr Option<void> None() {
-        return Option<void> { Option<void>::Tag::None };
+    constexpr Option<> None() noexcept {
+        return Option<> { Option<>::Tag::None };
     }
 }
 
