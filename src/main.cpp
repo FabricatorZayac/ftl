@@ -40,6 +40,7 @@ int main() {
     auto res = checked_div(5, 2);
     cout << res << endl;
     cout << res.map(Some<double>) << endl;
+    /* cout << res.map(Some) << endl; */
 
     res = checked_div(5, 0);
     cout << res << endl;
@@ -49,7 +50,7 @@ int main() {
 
     auto opt = some_int();
     cout << opt << endl;
-    cout << opt.map([](int a){return a * 2; }) << endl;
+    cout << opt.map([](int a){ return a * 2; }) << endl;
     cout << opt.map([](int a){ return Foo(a); }) << endl;
 
     opt = None();

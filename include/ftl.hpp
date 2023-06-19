@@ -1,7 +1,6 @@
 #ifndef RESULT_H_
 #define RESULT_H_
 
-#include <concepts>
 #include <cstddef>
 #include <iostream>
 #include <ostream>
@@ -66,6 +65,7 @@ namespace ftl {
     constexpr Option<T> Some(T) noexcept;
     constexpr Option<> None() noexcept;
 
+    constexpr Result<void, void> Ok() noexcept;
     template<typename T>
     constexpr Result<T, void> Ok(T) noexcept;
     template<typename E>
@@ -129,6 +129,17 @@ namespace ftl {
             return tag == Tag::Err;
         }
 
+        template<typename F>
+        auto map(F &&op) -> Result<decltype(op()), E> {
+            if (is_ok()) return Ok(op());
+            else return Err(err);
+        }
+        template<typename F>
+        auto map_err(F &&op) -> Result<void, decltype(op(std::declval<E>()))> {
+            if (is_ok()) return Ok();
+            else return Err(op(err));
+        }
+
         friend std::ostream &operator<<(std::ostream &out, Result self) {
             return out << self.tag << '(' << self.err << ')';
         }
@@ -185,14 +196,14 @@ namespace ftl {
         }
 
         template<typename F>
-        auto map(F op) {
-            if (is_ok()) return Result<decltype(op(ok)), E>(Ok(op(ok)));
-            else return Result<decltype(op(ok)), E>(Err(err));
+        auto map(F &&op) -> Result<decltype(op(std::declval<T>())), E> {
+            if (is_ok()) return Ok(op(ok));
+            else return Err(err);
         }
         template<typename F>
-        auto map_err(F op) {
-            if (is_ok()) return Result<T, decltype(op(err))>(Ok(ok));
-            else return Result<T, decltype(op(err))>(Err(op(err)));
+        auto map_err(F &&op) -> Result<T, decltype(op(std::declval<E>()))> {
+            if (is_ok()) return Ok(ok);
+            else return Err(op(err));
         }
 
         friend std::ostream &operator<<(std::ostream &out, Result self) {
@@ -242,7 +253,7 @@ namespace ftl {
             if (is_some()) some.~T();
         }
 
-        friend Option Some<T>(T Some) noexcept {
+        friend constexpr Option Some<T>(T Some) noexcept {
             Option temp(Option<> { Option<>::Tag::Some });
             temp.some = Some;
             return temp;
@@ -258,7 +269,7 @@ namespace ftl {
         }
 
         template<typename F>
-        auto map(F op) -> Option<decltype(op(std::declval<T>()))> {
+        auto map(F &&op) -> Option<decltype(op(std::declval<T>()))> {
             if (is_some()) return Some(op(some));
             else return None();
         }
