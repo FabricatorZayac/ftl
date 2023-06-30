@@ -41,31 +41,23 @@ struct OptionTest {
         cout << opt.map([](int a){ return a * 2; }) << endl;
         cout << opt.map([](int a){ return Foo(a); }) << endl;
 
-        opt = None();
+        Option<int &> opt_mut = opt.as_mut();
+        opt_mut.unwrap()++;
         cout << opt << endl;
-        cout << opt.ok_or_else([](){ return "kek"; }) << endl;
+
+        Option<const int &> opt_ref = opt.as_ref();
+        cout << opt_ref << endl;
+
+        Option<int> foo = None();
+        cout << foo << endl;
+        cout << foo.ok_or_else([](){ return "kek"; }) << endl;
     }
 };
 
-struct OptionRefTest {
-    struct Data { int a; };
-    struct Widget {
-        Option<Data> foo; 
-        Option<Data&> data() {
-            return foo.as_ref();
-        }
-    };
-    void operator()() {
-        Widget bar{ Some(Data{ 5 }) };
-        Option<Data&> data = bar.data();
-        assert(data.unwrap().a == 5);
-    }
-};
 
 int main() {
     ResultTest{}();
     OptionTest{}();
-    OptionRefTest{}();
 
     return 0;
 }

@@ -71,6 +71,12 @@ namespace ftl {
             Ok,
             Err,
         } tag;
+        bool is_ok() {
+            return tag == Tag::Ok;
+        }
+        bool is_err() {
+            return tag == Tag::Err;
+        }
         friend std::ostream &operator<<(std::ostream &out, Tag self) noexcept {
             switch (self) {
             case Tag::Ok:
@@ -115,12 +121,6 @@ namespace ftl {
             case Tag::Err:
                 return err;
             }
-        }
-        bool is_ok() {
-            return tag == Tag::Ok;
-        }
-        bool is_err() {
-            return tag == Tag::Err;
         }
 
         template<typename F>
@@ -182,12 +182,6 @@ namespace ftl {
                 return err;
             }
         }
-        bool is_ok() {
-            return tag == Tag::Ok;
-        }
-        bool is_err() {
-            return tag == Tag::Err;
-        }
 
         template<typename F>
         auto map(F &&op) -> Result<decltype(op(std::declval<T>())), E> {
@@ -230,6 +224,12 @@ namespace ftl {
             Some,
             None,
         } tag;
+        bool is_some() noexcept {
+            return tag == Tag::Some;
+        }
+        bool is_none() noexcept {
+            return tag == Tag::None;
+        }
         friend std::ostream &operator<<(std::ostream &out, Tag self) noexcept {
             switch (self) {
             case Tag::Some:
@@ -241,41 +241,41 @@ namespace ftl {
     };
     template<typename T>
     struct Option : Option<> {
-        constexpr Option(Option<void> &&temp) :
+        constexpr Option(Option<> &&temp) :
             Option<> { temp } {}
+        // Option(Option &temp) : Option<> {temp.tag} {
+        //     if (temp.is_some()) new (&some) T(temp.unwrap());
+        // };
         ~Option() {
             if (is_some()) some.~T();
         }
 
         friend constexpr Option Some<T>(T some) noexcept {
             Option temp(Option<> { Option<>::Tag::Some });
-            temp.some = some;
+            new (&temp.some) T(some);
             return temp;
         }
         T &unwrap() {
-            return some;
-        }
-        bool is_some() noexcept {
-            return tag == Tag::Some;
-        }
-        bool is_none() noexcept {
-            return tag == Tag::None;
+            if (is_some()) return some;
+            PANIC("Tried to unwrap a None option");
         }
 
         template<typename F>
         auto map(F &&op) -> Option<decltype(op(std::declval<T>()))> {
             if (is_some()) return Some(op(some));
-            else return None();
+            return None();
         }
         template<typename F>
         auto ok_or_else(F err) -> Result<T, decltype(err())> {
-            return is_some() ? Ok(some) : Err(err());
+            if (is_some()) return Ok(some);
+            return Err(err());
         }
-        Option<T&> as_ref() {
-            if (is_some()) {
-                T &some = this->some;
-                return Some(some);
-            }
+        Option<const T &> as_ref() {
+            if (is_some()) return Some(std::cref(some));
+            return None();
+        }
+        Option<T &> as_mut() {
+            if (is_some()) return Some(std::ref(some));
             return None();
         }
 
@@ -293,17 +293,11 @@ namespace ftl {
     };
 
     template<typename T>
-    struct Option<T&> : Option<T> {
-        constexpr Option(Option<void> &&temp) : Option<T>(std::move(temp)) {}
-        friend constexpr Option Some<T&>(T& some) noexcept {
-            Option temp(Option<> { Option<>::Tag::Some });
-            temp.some = some;
-            return temp;
-        }
-    private:
-        union {
-            std::reference_wrapper<T> some;
-        };
+    struct Option<T &> : Option<std::reference_wrapper<T>> {
+        constexpr Option(Option<std::reference_wrapper<T>> &&temp)
+            : Option<std::reference_wrapper<T>>(std::move(temp)) {}
+        constexpr Option(Option<> &&temp)
+            : Option<std::reference_wrapper<T>>(std::move(temp)) {}
     };
 
     constexpr Option<> None() noexcept {

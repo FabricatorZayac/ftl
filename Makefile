@@ -32,8 +32,8 @@ run: all
 debug: CFLAGS := $(CFLAGS) $(DEBUGFLAGS)
 debug: all
 
-gdb: debug
-	gdb $(TARGET)
+lldb: debug
+	lldb $(TARGET)
 
 $(TARGET): $(OBJS) | $(BIN)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
