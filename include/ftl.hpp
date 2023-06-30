@@ -12,18 +12,12 @@
     exit(1);
 
 namespace ftl {
-    template<typename E>
-    concept Error = requires(E err) {
-        err.descrition();
-    };
-
     struct str {
         using value_type = const char;
         using iterator = const char *;
         using reverse_iterator = const char *;
         using size_type = size_t;
 
-        constexpr str() {}
         constexpr str(const char *begin, size_type size) :
             begin_iter(begin),
             end_iter(begin + size) {}
@@ -248,14 +242,14 @@ namespace ftl {
     template<typename T>
     struct Option : Option<> {
         constexpr Option(Option<void> &&temp) :
-            Option<void> { temp } {}
+            Option<> { temp } {}
         ~Option() {
             if (is_some()) some.~T();
         }
 
-        friend constexpr Option Some<T>(T Some) noexcept {
+        friend constexpr Option Some<T>(T some) noexcept {
             Option temp(Option<> { Option<>::Tag::Some });
-            temp.some = Some;
+            temp.some = some;
             return temp;
         }
         T &unwrap() {
@@ -277,6 +271,13 @@ namespace ftl {
         auto ok_or_else(F err) -> Result<T, decltype(err())> {
             return is_some() ? Ok(some) : Err(err());
         }
+        Option<T&> as_ref() {
+            if (is_some()) {
+                T &some = this->some;
+                return Some(some);
+            }
+            return None();
+        }
 
         friend std::ostream &operator<<(std::ostream &out, Option self) {
             out << self.tag;
@@ -291,9 +292,30 @@ namespace ftl {
         };
     };
 
+    template<typename T>
+    struct Option<T&> : Option<T> {
+        constexpr Option(Option<void> &&temp) : Option<T>(std::move(temp)) {}
+        friend constexpr Option Some<T&>(T& some) noexcept {
+            Option temp(Option<> { Option<>::Tag::Some });
+            temp.some = some;
+            return temp;
+        }
+    private:
+        union {
+            std::reference_wrapper<T> some;
+        };
+    };
+
     constexpr Option<> None() noexcept {
         return Option<> { Option<>::Tag::None };
     }
 }
+
+#define TRY(EXPR)                                                \
+({                                                               \
+    auto ___temp = EXPR;                                         \
+    if (___temp.is_err()) return ftl::Err(___temp.unwrap_err()); \
+    ___temp.unwrap();                                            \
+})
 
 #endif // !RESULT_H_
