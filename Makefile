@@ -1,5 +1,5 @@
 ##
-# Project Title
+# FTL
 #
 # @file
 # @version 0.1
@@ -14,12 +14,12 @@ OBJ         := ./obj
 BIN         := ./bin
 INCLUDE     := ./include
 
-SRCS        := $(wildcard $(SRC)/*.cpp)
+SRCS        := $(shell find $(SRC) -name "*.cpp")
 OBJS        := $(patsubst $(SRC)/%.cpp, $(OBJ)/%.o, $(SRCS))
 TARGET      := $(BIN)/appname
 
 LDFLAGS     :=
-CFLAGS      := -I$(INCLUDE) -std=c++20 -Wall -Wextra
+CFLAGS      := -I$(INCLUDE) -std=c++17 -Wall -Wextra
 DEBUGFLAGS  := -O0 -ggdb
 
 .PHONY: all clean run debug gdb
