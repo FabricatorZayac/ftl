@@ -29,14 +29,14 @@ int main () {
     Option<int> foo = None();
     assert(foo == None());
 
-    // assert(opt.ok_or_else([](){
-    //             cout << "opt else run" << endl;
-    //             return str("kek");
-    //         }) == Err(str("kek")));
-    cout << foo.ok_or_else([](){
-                cout << "foo else run" << endl;
+    assert(opt.ok_or_else([](){
+                cout << "opt else run" << endl;
                 return str("kek");
-            }) << endl;
+            }) == Ok(opt.unwrap()));
+    assert(foo.ok_or_else([](){
+                cout << "opt else run" << endl;
+                return str("kek");
+            }) == Err(str("kek")));
     
     return 0;
 }

@@ -79,7 +79,7 @@ namespace ftl {
         bool is_err() const {
             return tag == Tag::Err;
         }
-        friend std::ostream &operator<<(std::ostream &out, const Tag &self)  {
+        friend std::ostream &operator<<(std::ostream &out, const Tag &self) {
             switch (self) {
             case Tag::Ok:
                 return out << "Ok";
@@ -113,13 +113,13 @@ namespace ftl {
             case Tag::Ok:
                 break;
             case Tag::Err:
-                panic("Tried to unwrap an error, baka");
+                panic("Tried to unwrap an `Err` variant");
             }
         }
         E unwrap_err() const {
             switch (tag) {
             case Tag::Ok:
-                panic("Not an error, you fucking idiot");
+                panic("Tried to unwrap_err on `Ok` variant");
             case Tag::Err:
                 return err;
             }
@@ -181,25 +181,25 @@ namespace ftl {
             case Tag::Ok:
                 return ok;
             case Tag::Err:
-                panic("Tried to unwrap an Error, baka");
+                panic("Tried to unwrap an `Err` variant");
             }
         }
         E unwrap_err() const {
             switch (tag) {
             case Tag::Ok:
-                panic("Not an error, you fucking idiot");
+                panic("Tried to unwrap_err on an `Ok` variant");
             case Tag::Err:
                 return err;
             }
         }
 
         template<typename F>
-        auto map(F &&op) -> Result<decltype(op(std::declval<T>())), E> {
+        auto map(const F &op) -> Result<decltype(op(std::declval<T>())), E> {
             if (is_ok()) return Ok(op(ok));
             else return Err(err);
         }
         template<typename F>
-        auto map_err(F &&op) -> Result<T, decltype(op(std::declval<E>()))> {
+        auto map_err(const F &op) -> Result<T, decltype(op(std::declval<E>()))> {
             if (is_ok()) return Ok(ok);
             else return Err(op(err));
         }
@@ -280,7 +280,7 @@ namespace ftl {
         }
 
         template<typename F>
-        auto map(F &&op) -> Option<decltype(op(std::declval<T>()))> {
+        auto map(const F &op) -> Option<decltype(op(std::declval<T>()))> {
             if (is_some()) return Some(op(some));
             return None();
         }
