@@ -4,30 +4,39 @@
 # @file
 # @version 0.1
 
-CC          := clang++
-RMDIR       := rm -rf
+CXX         := clang++
 RM          := rm -f
+RMDIR       := rm -rf
 MKDIR       := mkdir
+DEBUGGER    := lldb
 
-SRC         := ./src
-OBJ         := ./obj
-BIN         := ./bin
-INCLUDE     := ./include
+INCLUDE     := include
 
-SRCS        := $(shell find $(SRC) -name "*.cpp")
-OBJS        := $(patsubst $(SRC)/%.cpp, $(OBJ)/%.o, $(SRCS))
-TARGET      := $(BIN)/appname
+TESTDIR     := test
+TESTSRC     := $(TESTDIR)/src
+TESTOBJ     := $(TESTDIR)/obj
+TESTBIN     := $(TESTDIR)/bin
+
+TESTSRCS    := $(shell find $(TESTSRC) -name "*.cpp")
+TESTOBJS    := $(patsubst $(TESTSRC)/%.cpp, $(TESTOBJ)/%.o, $(TESTSRCS))
+TESTS       := $(patsubst $(TESTOBJ)/%.o, $(TESTBIN)/%, $(TESTOBJS))
 
 LDFLAGS     :=
 CFLAGS      := -I$(INCLUDE) -std=c++17 -Wall -Wextra
 DEBUGFLAGS  := -O0 -ggdb
 
-.PHONY: all clean run debug gdb
+define execute
+$(1)
 
-all: $(TARGET)
+endef
 
-run: all
-	./$(TARGET)
+.PHONY: all clean debug lldb test
+
+all: $(TESTS)
+
+# TODO: implement proper execution
+test: all
+	$(foreach x, $(TESTS), $(call execute, ./$(x)))
 
 debug: CFLAGS := $(CFLAGS) $(DEBUGFLAGS)
 debug: all
@@ -35,17 +44,16 @@ debug: all
 lldb: debug
 	lldb $(TARGET)
 
-$(TARGET): $(OBJS) | $(BIN)
-	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+$(TESTBIN)/%: $(TESTOBJ)/%.o | $(TESTBIN)
+	$(CXX) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-$(OBJ)/%.o: $(SRC)/%.cpp | $(OBJ)
-	$(CC) $(CFLAGS) -c $< -o $@
+$(TESTOBJ)/%.o: $(TESTSRC)/%.cpp $(TESTOBJ)
+	$(CXX) $(CFLAGS) -c $< -o $@
 
-$(OBJ) $(BIN):
+$(TESTOBJ) $(TESTBIN):
 	$(MKDIR) $@
 
 clean:
-	$(RMDIR) $(BIN) $(OBJ)
-
+	$(RMDIR) $(TESTDIR)/bin $(TESTDIR)/obj
 
 # end

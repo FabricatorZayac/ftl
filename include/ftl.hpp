@@ -36,7 +36,7 @@ namespace ftl {
         constexpr value_type &operator[](size_type idx) {
             return begin_iter[idx];
         }
-        bool operator==(str &other) noexcept {
+        constexpr bool operator==(str &other) {
             for (auto &[i, j] : { *this, other }) {
                 if (*i != *j) return false;
             }
@@ -56,14 +56,14 @@ namespace ftl {
     struct Option;
 
     template<typename T>
-    constexpr Option<T> Some(T) noexcept;
-    constexpr Option<> None() noexcept;
+    constexpr Option<T> Some(T) ;
+    constexpr Option<> None() ;
 
-    constexpr Result<void, void> Ok() noexcept;
+    constexpr Result<void, void> Ok() ;
     template<typename T>
-    constexpr Result<T, void> Ok(T) noexcept;
+    constexpr Result<T, void> Ok(T) ;
     template<typename E>
-    constexpr Result<void, E> Err(E) noexcept;
+    constexpr Result<void, E> Err(E) ;
 
     template<>
     struct Result<> {
@@ -77,7 +77,7 @@ namespace ftl {
         bool is_err() {
             return tag == Tag::Err;
         }
-        friend std::ostream &operator<<(std::ostream &out, Tag self) noexcept {
+        friend std::ostream &operator<<(std::ostream &out, Tag self)  {
             switch (self) {
             case Tag::Ok:
                 return out << "Ok";
@@ -101,7 +101,7 @@ namespace ftl {
         ~Result() {
             if (is_err()) err.~E();
         }
-        friend Result Err<E>(E err) noexcept {
+        friend Result Err<E>(E err)  {
             Result temp(Result<>{ Result<>::Tag::Err });
             temp.err = err;
             return temp;
@@ -211,10 +211,10 @@ namespace ftl {
     };
 
     template<typename T>
-    constexpr Result<T, void> Ok(T ok) noexcept {
+    constexpr Result<T, void> Ok(T ok)  {
         return Result<T, void> { .ok = ok };
     }
-    constexpr Result<void, void> Ok() noexcept {
+    constexpr Result<void, void> Ok()  {
         return Result<> { Result<>::Tag::Ok };
     }
 
@@ -224,13 +224,13 @@ namespace ftl {
             Some,
             None,
         } tag;
-        bool is_some() noexcept {
+        bool is_some()  {
             return tag == Tag::Some;
         }
-        bool is_none() noexcept {
+        bool is_none()  {
             return tag == Tag::None;
         }
-        friend std::ostream &operator<<(std::ostream &out, Tag self) noexcept {
+        friend std::ostream &operator<<(std::ostream &out, Tag self)  {
             switch (self) {
             case Tag::Some:
                 return out << "Some";
@@ -250,7 +250,7 @@ namespace ftl {
             if (is_some()) some.~T();
         }
 
-        friend constexpr Option Some<T>(T some) noexcept {
+        friend constexpr Option Some<T>(T some)  {
             Option temp(Option<> { Option<>::Tag::Some });
             new (&temp.some) T(some);
             return temp;
@@ -279,7 +279,14 @@ namespace ftl {
             return None();
         }
 
-        friend std::ostream &operator<<(std::ostream &out, Option self) {
+        bool operator==(Option<> &&other) {
+            return is_none() && other.is_none();
+        }
+        bool operator==(Option &&other) {
+            return (is_none() && other.is_none()) || (is_some() && other.is_some() && some == other.some);
+        }
+
+        friend std::ostream &operator<<(std::ostream &out, Option &&self) {
             out << self.tag;
             if (self.is_some()) {
                 out << '(' << self.unwrap() << ')';
@@ -300,7 +307,7 @@ namespace ftl {
             : Option<std::reference_wrapper<T>>(std::move(temp)) {}
     };
 
-    constexpr Option<> None() noexcept {
+    constexpr Option<> None()  {
         return Option<> { Option<>::Tag::None };
     }
 }
