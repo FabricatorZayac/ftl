@@ -14,12 +14,11 @@ Result<double, str> checked_div(double a, double b) {
 
 int main() {
     Result res = checked_div(5, 2);
-    assert(res.is_ok());
-    assert(res.unwrap() == 5. / 2);
+    assert(res == Ok(2.5));
+    assert(res.map([](double a){ return a * 4; }) == Ok(10));
 
     res = checked_div(5, 0);
-    assert(res.is_err());
-    cout << res << endl;
+    assert(res == Err(str("div by zero")));
 
     return 0;
 }

@@ -116,7 +116,7 @@ namespace ftl {
                 panic("Tried to unwrap an error, baka");
             }
         }
-        E unwrap_err() {
+        E unwrap_err() const {
             switch (tag) {
             case Tag::Ok:
                 panic("Not an error, you fucking idiot");
@@ -134,6 +134,14 @@ namespace ftl {
         auto map_err(F &&op) -> Result<void, decltype(op(std::declval<E>()))> {
             if (is_ok()) return Ok();
             else return Err(op(err));
+        }
+
+        bool operator==(const Result<> &other) const {
+            return is_ok() && other.is_ok();
+        }
+        bool operator==(const Result<void, E> &other) const {
+            return (is_ok() && other.is_ok())
+                or (is_err() && other.is_err() && err == other.err);
         }
 
         friend std::ostream &operator<<(std::ostream &out, Result self) {
@@ -176,7 +184,7 @@ namespace ftl {
                 panic("Tried to unwrap an Error, baka");
             }
         }
-        E unwrap_err() {
+        E unwrap_err() const {
             switch (tag) {
             case Tag::Ok:
                 panic("Not an error, you fucking idiot");
@@ -196,12 +204,24 @@ namespace ftl {
             else return Err(op(err));
         }
 
+        bool operator==(const Result<void, E> &other) const {
+            return (is_ok() && other.is_ok())
+                or (is_err() && other.is_err() && err == other.unwrap_err());
+        }
+        bool operator==(const Result<T, void> &other) const {
+            return is_ok() && ok == other.ok;
+        }
+        bool operator==(const Result<T, E> &other) const {
+            return (is_ok() && other.is_ok() && ok == other.ok)
+                or (is_err() && other.is_err() && err == other.err);
+        }
+
         friend std::ostream &operator<<(std::ostream &out, Result self) {
             out << self.tag << '(';
             switch (self.tag) {
-            case decltype(self.tag)::Ok:
+            case Tag::Ok:
                 return out << self.ok << ')';
-            case decltype(self.tag)::Err:
+            case Tag::Err:
                 return out << self.err << ')';
             }
         }
@@ -282,7 +302,8 @@ namespace ftl {
             return is_none() && other.is_none();
         }
         bool operator==(const Option &other) const {
-            return (is_none() && other.is_none()) || (is_some() && other.is_some() && some == other.some);
+            return (is_none() && other.is_none())
+                or (is_some() && other.is_some() && some == other.some);
         }
 
         friend std::ostream &operator<<(std::ostream &out, Option &&self) {
