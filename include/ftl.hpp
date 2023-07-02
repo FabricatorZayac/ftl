@@ -2,16 +2,14 @@
 #define RESULT_H_
 
 #include <cstddef>
+#include <cstring>
 #include <iostream>
-#include <ostream>
-#include <string>
-#include <utility>
-
-#define PANIC(ERROR)                 \
-    std::cerr << ERROR << std::endl; \
-    exit(1);
 
 namespace ftl {
+    [[noreturn]] inline void panic(const char *error) {
+        std::cerr << error << std::endl;
+        exit(1);
+    }
     struct str {
         using value_type = const char;
         using iterator = const char *;
@@ -31,19 +29,23 @@ namespace ftl {
         constexpr reverse_iterator crbegin() { return this->begin_iter; }
         constexpr reverse_iterator crend() { return this->end_iter; }
 
-        constexpr size_type size() { return end_iter - begin_iter; }
+        constexpr size_type size() const { return end_iter - begin_iter; }
 
-        constexpr value_type &operator[](size_type idx) {
+        constexpr value_type &operator[](size_type idx) const {
             return begin_iter[idx];
         }
-        constexpr bool operator==(str &other) {
-            for (auto &[i, j] : { *this, other }) {
-                if (*i != *j) return false;
-            }
-            return true;
+
+        bool operator==(const str &other) const {
+            return size() == other.size()
+               and !memcmp(begin_iter, other.begin_iter, size());
         }
-        friend std::ostream &operator<<(std::ostream &out, str self) {
-            return out.write(self.begin_iter, self.end_iter - self.begin_iter);
+        bool operator==(const char *other) const {
+            return other[size()] == '\0'
+               and !memcmp(begin_iter, other, size());
+        }
+
+        friend std::ostream &operator<<(std::ostream &out, const str &self) {
+            return out.write(self.begin_iter, self.size());
         }
     private:
         iterator begin_iter;
@@ -56,14 +58,14 @@ namespace ftl {
     struct Option;
 
     template<typename T>
-    constexpr Option<T> Some(T) ;
-    constexpr Option<> None() ;
+    constexpr Option<T> Some(T);
+    constexpr Option<> None();
 
-    constexpr Result<void, void> Ok() ;
+    constexpr Result<void, void> Ok();
     template<typename T>
-    constexpr Result<T, void> Ok(T) ;
+    constexpr Result<T, void> Ok(T);
     template<typename E>
-    constexpr Result<void, E> Err(E) ;
+    constexpr Result<void, E> Err(E);
 
     template<>
     struct Result<> {
@@ -71,13 +73,13 @@ namespace ftl {
             Ok,
             Err,
         } tag;
-        bool is_ok() {
+        bool is_ok() const {
             return tag == Tag::Ok;
         }
-        bool is_err() {
+        bool is_err() const {
             return tag == Tag::Err;
         }
-        friend std::ostream &operator<<(std::ostream &out, Tag self)  {
+        friend std::ostream &operator<<(std::ostream &out, const Tag &self)  {
             switch (self) {
             case Tag::Ok:
                 return out << "Ok";
@@ -101,7 +103,7 @@ namespace ftl {
         ~Result() {
             if (is_err()) err.~E();
         }
-        friend Result Err<E>(E err)  {
+        friend Result Err<E>(E err) {
             Result temp(Result<>{ Result<>::Tag::Err });
             temp.err = err;
             return temp;
@@ -111,13 +113,13 @@ namespace ftl {
             case Tag::Ok:
                 break;
             case Tag::Err:
-                PANIC("Tried to unwrap an error, baka");
+                panic("Tried to unwrap an error, baka");
             }
         }
         E unwrap_err() {
             switch (tag) {
             case Tag::Ok:
-                PANIC("Not an error, you fucking idiot");
+                panic("Not an error, you fucking idiot");
             case Tag::Err:
                 return err;
             }
@@ -142,7 +144,7 @@ namespace ftl {
             E err;
         };
         Result(E err) :
-            Result<void, void> { Tag::Err },
+            Result<> { Tag::Err },
             err(err) {}
     };
 
@@ -171,13 +173,13 @@ namespace ftl {
             case Tag::Ok:
                 return ok;
             case Tag::Err:
-                PANIC("Tried to unwrap an Error, baka");
+                panic("Tried to unwrap an Error, baka");
             }
         }
         E unwrap_err() {
             switch (tag) {
             case Tag::Ok:
-                PANIC("Not an error, you fucking idiot");
+                panic("Not an error, you fucking idiot");
             case Tag::Err:
                 return err;
             }
@@ -214,7 +216,7 @@ namespace ftl {
     constexpr Result<T, void> Ok(T ok)  {
         return Result<T, void> { .ok = ok };
     }
-    constexpr Result<void, void> Ok()  {
+    constexpr Result<> Ok()  {
         return Result<> { Result<>::Tag::Ok };
     }
 
@@ -224,13 +226,13 @@ namespace ftl {
             Some,
             None,
         } tag;
-        bool is_some()  {
+        bool is_some() const {
             return tag == Tag::Some;
         }
-        bool is_none()  {
+        bool is_none() const {
             return tag == Tag::None;
         }
-        friend std::ostream &operator<<(std::ostream &out, Tag self)  {
+        friend std::ostream &operator<<(std::ostream &out, const Tag &self) {
             switch (self) {
             case Tag::Some:
                 return out << "Some";
@@ -243,9 +245,6 @@ namespace ftl {
     struct Option : Option<> {
         constexpr Option(Option<> &&temp) :
             Option<> { temp } {}
-        // Option(Option &temp) : Option<> {temp.tag} {
-        //     if (temp.is_some()) new (&some) T(temp.unwrap());
-        // };
         ~Option() {
             if (is_some()) some.~T();
         }
@@ -257,7 +256,7 @@ namespace ftl {
         }
         T &unwrap() {
             if (is_some()) return some;
-            PANIC("Tried to unwrap a None option");
+            panic("Tried to unwrap a None option");
         }
 
         template<typename F>
@@ -279,10 +278,10 @@ namespace ftl {
             return None();
         }
 
-        bool operator==(Option<> &&other) {
+        bool operator==(const Option<> &other) const {
             return is_none() && other.is_none();
         }
-        bool operator==(Option &&other) {
+        bool operator==(const Option &other) const {
             return (is_none() && other.is_none()) || (is_some() && other.is_some() && some == other.some);
         }
 

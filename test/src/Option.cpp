@@ -10,7 +10,7 @@ struct Foo {
     friend ostream &operator<<(ostream &out, Foo &) {
         return out << "Foo";
     }
-    bool operator==(Foo) { return true; }
+    bool operator==(const Foo&) const { return true; }
 };
 
 int main () {
