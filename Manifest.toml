@@ -1,0 +1,7 @@
+[meta]
+language = "cpp"
+type = "hlib"
+build = "make"
+
+[package]
+name = "ftl"
