@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <cstring>
+#include <functional>
 #include <iostream>
 
 namespace ftl {
@@ -29,23 +30,23 @@ namespace ftl {
         constexpr reverse_iterator crbegin() { return this->begin_iter; }
         constexpr reverse_iterator crend() { return this->end_iter; }
 
-        constexpr size_type size() const { return end_iter - begin_iter; }
+        constexpr size_type len() const { return end_iter - begin_iter; }
 
         constexpr value_type &operator[](size_type idx) const {
             return begin_iter[idx];
         }
 
         bool operator==(const str &other) const {
-            return size() == other.size()
-               and !memcmp(begin_iter, other.begin_iter, size());
+            return len() == other.len()
+               and !memcmp(begin_iter, other.begin_iter, len());
         }
         bool operator==(const char *other) const {
-            return other[size()] == '\0'
-               and !memcmp(begin_iter, other, size());
+            return other[len()] == '\0'
+               and !memcmp(begin_iter, other, len());
         }
 
         friend std::ostream &operator<<(std::ostream &out, const str &self) {
-            return out.write(self.begin_iter, self.size());
+            return out.write(self.begin_iter, self.len());
         }
     private:
         iterator begin_iter;
@@ -124,14 +125,18 @@ namespace ftl {
                 return err;
             }
         }
+        bool is_ok_and(const std::function<bool()> &f) const {
+            return is_ok() && f();
+        }
+        bool is_err_and(const std::function<bool(const E &)> &f) const {
+            return is_err() && f(err);
+        }
 
-        template<typename F>
-        auto map(F &&op) -> Result<decltype(op()), E> {
+        auto map(auto op) -> Result<decltype(op()), E> {
             if (is_ok()) return Ok(op());
             else return Err(err);
         }
-        template<typename F>
-        auto map_err(F &&op) -> Result<void, decltype(op(std::declval<E>()))> {
+        auto map_err(auto op) -> Result<void, decltype(op(std::declval<E>()))> {
             if (is_ok()) return Ok();
             else return Err(op(err));
         }
@@ -184,7 +189,7 @@ namespace ftl {
                 panic("Tried to unwrap an `Err` variant");
             }
         }
-        E unwrap_err() const {
+        E unwrap_err() {
             switch (tag) {
             case Tag::Ok:
                 panic("Tried to unwrap_err on an `Ok` variant");
@@ -192,21 +197,25 @@ namespace ftl {
                 return err;
             }
         }
+        bool is_ok_and(const std::function<bool(const T&)> &f) const {
+            return is_ok() && f(ok);
+        }
+        bool is_err_and(const std::function<bool(const E&)> &f) const {
+            return is_err() && f(err);
+        }
 
-        template<typename F>
-        auto map(const F &op) -> Result<decltype(op(std::declval<T>())), E> {
+        auto map(auto op) -> Result<decltype(op(std::declval<T>())), E> {
             if (is_ok()) return Ok(op(ok));
             else return Err(err);
         }
-        template<typename F>
-        auto map_err(const F &op) -> Result<T, decltype(op(std::declval<E>()))> {
+        auto map_err(auto op) -> Result<T, decltype(op(std::declval<E>()))> {
             if (is_ok()) return Ok(ok);
             else return Err(op(err));
         }
 
         bool operator==(const Result<void, E> &other) const {
             return (is_ok() && other.is_ok())
-                or (is_err() && other.is_err() && err == other.unwrap_err());
+                or (is_err() && other.is_err_and([&](const E &a){ return err == a; }));
         }
         bool operator==(const Result<T, void> &other) const {
             return is_ok() && ok == other.ok;
@@ -230,6 +239,14 @@ namespace ftl {
             T ok;
             E err;
         };
+    };
+
+    template<typename T, typename E>
+    struct
+    [[nodiscard("`Result` may be an `Err` variant, which should be handled")]]
+    Result<T &, E> : Result<std::reference_wrapper<T>, E> {
+        constexpr Result(Result<T, void> &&temp) 
+            : Result<std::reference_wrapper<T>, E>(temp) {}
     };
 
     template<typename T>
@@ -278,14 +295,15 @@ namespace ftl {
             if (is_some()) return some;
             panic("Tried to unwrap a None option");
         }
+        bool is_some_and(std::function<bool(const T&)> f) {
+            return is_some() && f(some);
+        }
 
-        template<typename F>
-        auto map(const F &op) -> Option<decltype(op(std::declval<T>()))> {
+        auto map(auto op) -> Option<decltype(op(std::declval<T>()))> {
             if (is_some()) return Some(op(some));
             return None();
         }
-        template<typename F>
-        auto ok_or_else(F err) -> Result<T, decltype(err())> {
+        auto ok_or_else(auto err) -> Result<T, decltype(err())> {
             if (is_some()) return Ok(some);
             return Err(err());
         }

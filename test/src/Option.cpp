@@ -15,6 +15,7 @@ struct Foo {
 
 int main () {
     Option<int> opt = Some(5);
+    assert(opt.is_some_and([](int a){ return a == 5; }));
     assert(opt == Some(5));
 
     assert(opt.map([](int a){ return a * 3; }) == Some(15));
@@ -35,8 +36,8 @@ int main () {
             }) == Ok(opt.unwrap()));
     assert(foo.ok_or_else([](){
                 cout << "opt else run" << endl;
-                return str("kek");
-            }) == Err(str("kek")));
+                return "kek";
+            }) == Err("kek"));
     
     return 0;
 }
