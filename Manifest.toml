@@ -1,7 +1,5 @@
 [meta]
-language = "cpp"
-type = "hlib"
-build = "make"
-
-[package]
 name = "ftl"
+language = "cpp"
+type = "source-lib"
+build = "make"
