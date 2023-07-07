@@ -59,5 +59,7 @@ int main() {
     bar_res_copy.unwrap()++;
     assert(bar.a == 7);
 
+    assert(Ok(5).map([](int a){ return a * 2; }).unwrap() == 10);
+
     return 0;
 }

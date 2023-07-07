@@ -64,7 +64,10 @@ namespace ftl {
     };
 
     template<typename T = void, typename E = void>
-    struct Result;
+    struct
+    [[nodiscard("`Result` may be an `Err` variant, which should be handled")]]
+    Result;
+
     template<typename T = void>
     struct Option;
 
@@ -100,16 +103,22 @@ namespace ftl {
         }
     };
 
+    // Infallible
     template<typename T>
     struct Result<T, void> : Result<> {
         constexpr static Tag tag = Tag::Ok;
         T ok;
+
+        auto map(auto op) -> Result<decltype(op(std::declval<T>())), void> {
+            return Ok(op(ok));
+        }
+        T unwrap() {
+            return ok;
+        }
     };
 
     template<typename E>
-    struct
-    [[nodiscard("`Result` may be an `Err` variant, which should be handled")]]
-    Result<void, E> : Result<> {
+    struct Result<void, E> : Result<> {
         constexpr Result(Result<> &&temp) :
             Result<>{ temp } {}
         constexpr Result(const Result &other) :
@@ -172,9 +181,7 @@ namespace ftl {
     };
 
     template<typename T, typename E>
-    struct
-    [[nodiscard("`Result` may be an `Err` variant, which should be handled")]]
-    Result : Result<> {
+    struct Result : Result<> {
         constexpr Result(Result<T, void> &&temp) :
             Result<>{ temp.tag },
             ok(temp.ok) { }
@@ -263,9 +270,7 @@ namespace ftl {
     };
 
     template<typename T, typename E>
-    struct
-    [[nodiscard("`Result` may be an `Err` variant, which should be handled")]]
-    Result<T &, E> : Result<std::reference_wrapper<T>, E> {
+    struct Result<T &, E> : Result<std::reference_wrapper<T>, E> {
         constexpr Result(Result<std::reference_wrapper<T>, void> &&temp) :
             Result<std::reference_wrapper<T>, E>(std::move(temp)) {}
         constexpr Result(Result<void, E> &&temp) :
