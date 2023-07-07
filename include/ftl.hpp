@@ -11,6 +11,12 @@ namespace ftl {
         std::cerr << error << std::endl;
         exit(1);
     }
+
+    template<typename T>
+    struct PhantomData {
+        bool operator==(const PhantomData &) { return true; }
+    };
+
     struct str {
         using value_type = const char;
         using iterator = const char *;
