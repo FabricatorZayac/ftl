@@ -1,5 +1,5 @@
-#ifndef RESULT_H_
-#define RESULT_H_
+#ifndef FTL_H_
+#define FTL_H_
 
 #include <cstddef>
 #include <cstring>
@@ -128,7 +128,7 @@ namespace ftl {
         ~Result() {
             if (is_err()) err.~E();
         }
-        friend Result Err<E>(E err) {
+        friend constexpr Result Err<E>(E err) {
             Result temp(Result<>{ Result<>::Tag::Err });
             temp.err = err;
             return temp;
@@ -389,4 +389,4 @@ namespace ftl {
     ___temp.unwrap();                                            \
 })
 
-#endif // !RESULT_H_
+#endif // !FTL_H_
