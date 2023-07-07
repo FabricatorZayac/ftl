@@ -5,6 +5,7 @@
 #include <cstring>
 #include <functional>
 #include <iostream>
+#include <string>
 
 namespace ftl {
     [[noreturn]] inline void panic(const char *error) {
@@ -53,6 +54,9 @@ namespace ftl {
 
         friend std::ostream &operator<<(std::ostream &out, const str &self) {
             return out.write(self.begin_iter, self.len());
+        }
+        friend std::string &operator+=(std::string &string, const str &self) {
+            return string.append(self.begin_iter, self.len());
         }
     private:
         iterator begin_iter;
