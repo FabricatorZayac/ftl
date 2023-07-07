@@ -100,7 +100,12 @@ namespace ftl {
     struct
     [[nodiscard("`Result` may be an `Err` variant, which should be handled")]]
     Result<void, E> : Result<> {
-        constexpr Result(Result<> &&temp) : Result<>{ temp } {}
+        constexpr Result(Result<> &&temp) :
+            Result<>{ temp } {}
+        constexpr Result(const Result &other) :
+            Result<>{ other.tag } {
+            if (is_err()) new (&err) E(other.err);
+        }
         ~Result() {
             if (is_err()) err.~E();
         }
@@ -110,12 +115,7 @@ namespace ftl {
             return temp;
         }
         void unwrap() {
-            switch (tag) {
-            case Tag::Ok:
-                break;
-            case Tag::Err:
-                panic("Tried to unwrap an `Err` variant");
-            }
+            if (is_err()) panic("Tried to unwrap an `Err` variant");
         }
         E unwrap_err() const {
             switch (tag) {
@@ -171,6 +171,17 @@ namespace ftl {
         constexpr Result(Result<void, E> &&temp) :
             Result<>{ temp.tag },
             err(temp.unwrap_err()) { }
+        constexpr Result(const Result &other) :
+            Result<> {other.tag} {
+            switch (tag) {
+            case Tag::Ok:
+                new (&ok) T(other.ok);
+                break;
+            case Tag::Err:
+                new (&err) E(other.err);
+                break;
+            }
+        }
         ~Result() {
             switch (tag) {
             case Tag::Ok:
@@ -245,8 +256,10 @@ namespace ftl {
     struct
     [[nodiscard("`Result` may be an `Err` variant, which should be handled")]]
     Result<T &, E> : Result<std::reference_wrapper<T>, E> {
-        constexpr Result(Result<T, void> &&temp) 
-            : Result<std::reference_wrapper<T>, E>(temp) {}
+        constexpr Result(Result<std::reference_wrapper<T>, void> &&temp) :
+            Result<std::reference_wrapper<T>, E>(std::move(temp)) {}
+        constexpr Result(Result<void, E> &&temp) :
+            Result<std::reference_wrapper<T>, E>(std::move(temp)) {}
     };
 
     template<typename T>
@@ -282,6 +295,10 @@ namespace ftl {
     struct Option : Option<> {
         constexpr Option(Option<> &&temp) :
             Option<> { temp } {}
+        constexpr Option(const Option &other) :
+            Option<> { other.tag } {
+                if (is_some()) some = other.some;
+            }
         ~Option() {
             if (is_some()) some.~T();
         }
@@ -339,10 +356,10 @@ namespace ftl {
 
     template<typename T>
     struct Option<T &> : Option<std::reference_wrapper<T>> {
-        constexpr Option(Option<std::reference_wrapper<T>> &&temp)
-            : Option<std::reference_wrapper<T>>(std::move(temp)) {}
-        constexpr Option(Option<> &&temp)
-            : Option<std::reference_wrapper<T>>(std::move(temp)) {}
+        constexpr Option(Option<std::reference_wrapper<T>> &&temp) :
+            Option<std::reference_wrapper<T>>(std::move(temp)) {}
+        constexpr Option(Option<> &&temp) :
+            Option<std::reference_wrapper<T>>(std::move(temp)) {}
     };
 
     constexpr Option<> None()  {
