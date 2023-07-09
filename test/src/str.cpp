@@ -8,6 +8,7 @@ using namespace std;
 
 int main () {
     str foo = "foobar";
+    assert(foo.len() == 6);
 
     cout << foo << endl;
     cout << str("foobar") << endl;

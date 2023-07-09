@@ -456,14 +456,29 @@ namespace ftl {
     template<typename T>
     Slice(std::initializer_list<T>) -> Slice<const T>;
 
-    using str = Slice<const char>;
+    struct str : Slice<const char> {
+        constexpr str(const char *data, size_type length) :
+            Slice<const char>(data, length) {}
+        template<size_type N>
+        constexpr str(const char (&data)[N]) :
+            Slice<const char>(data, N - 1) {}
 
-    inline std::ostream &operator<<(std::ostream &out, const str &self) {
-        return out.write(self.cbegin(), self.len());
-    }
-    inline std::string &operator+=(std::string &string, const str &self) {
-        return string.append(self.cbegin(), self.len());
-    }
+        bool operator==(const str &other) const {
+            return len() == other.len()
+               and !memcmp(cbegin(), other.cbegin(), len());
+        }
+        template<size_type N>
+        bool operator==(const char (&other)[N]) const {
+            return other[len()] == '\0'
+               and !memcmp(cbegin(), other, N);
+        }
+        friend std::ostream &operator<<(std::ostream &out, const str &self) {
+            return out.write(self.cbegin(), self.len());
+        }
+        friend std::string &operator+=(std::string &string, const str &self) {
+            return string.append(self.cbegin(), self.len());
+        }
+    };
 }
 
 #define TRY(EXPR)                                                \
