@@ -350,9 +350,6 @@ namespace ftl {
     // TODO: add a bunch of concept checks like Ord and stuff
     template<typename Idx>
     struct Range {
-        constexpr Range(Idx start_idx, Idx end_idx) :
-            start_idx(start_idx),
-            end_idx(end_idx) {}
         struct iterator {
             constexpr iterator(Idx index) : index(index) {}
 
@@ -369,6 +366,10 @@ namespace ftl {
         private:
             Idx index;
         };
+
+        constexpr Range(Idx start_idx, Idx end_idx) :
+            start_idx(start_idx),
+            end_idx(end_idx) {}
 
         constexpr iterator begin() const { return start_idx; }
         constexpr iterator end() const { return end_idx; }
@@ -388,7 +389,7 @@ namespace ftl {
         using iterator = T *;
         using const_iterator = const T *;
         using reverse_iterator = std::reverse_iterator<iterator>;
-        using const_reverse_iterator = const reverse_iterator;
+        using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
         using size_type = size_t;
 
@@ -402,17 +403,22 @@ namespace ftl {
         constexpr Slice(const T (&data)[N]) :
             data(data),
             length(N) {}
-        constexpr Slice(const Slice &) = default;
 
         constexpr iterator begin() { return data; }
+        constexpr const_iterator begin() const { return data; }
         constexpr const_iterator cbegin() const { return data; }
+
         constexpr iterator end() { return data + length; }
+        constexpr const_iterator end() const { return data + length; }
         constexpr const_iterator cend() const { return data + length; }
 
-        constexpr iterator rbegin() { return data; }
-        constexpr const_iterator crbegin() const { return data + length; }
-        constexpr iterator rend() { return data; }
-        constexpr const_iterator crend() const { return data + length; }
+        constexpr reverse_iterator rbegin() { return data; }
+        constexpr const_reverse_iterator rbegin() const { return data; }
+        constexpr const_reverse_iterator crbegin() const { return data + length; }
+
+        constexpr reverse_iterator rend() { return data; }
+        constexpr const_reverse_iterator rend() const { return data; }
+        constexpr const_reverse_iterator crend() const { return data + length; }
 
         value_type *as_ptr() { return data; }
         constexpr size_type len() const { return length; }
