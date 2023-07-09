@@ -382,11 +382,7 @@ namespace ftl {
         }
         friend constexpr Option Some<T>(T);
 
-        T &unwrap() {
-            if (is_some()) return some;
-            panic("Tried to unwrap a None option");
-        }
-        T &unwrap() const {
+        T unwrap() const {
             if (is_some()) return some;
             panic("Tried to unwrap a None option");
         }
