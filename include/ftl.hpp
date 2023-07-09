@@ -386,6 +386,10 @@ namespace ftl {
             if (is_some()) return some;
             panic("Tried to unwrap a None option");
         }
+        T &unwrap() const {
+            if (is_some()) return some;
+            panic("Tried to unwrap a None option");
+        }
         bool is_some_and(std::function<bool(const T &)> f) {
             return is_some() && f(some);
         }
