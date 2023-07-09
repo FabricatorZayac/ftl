@@ -4,65 +4,13 @@
 #include <cstddef>
 #include <cstring>
 #include <functional>
+#include <initializer_list>
 #include <iostream>
+#include <iterator>
+#include <ostream>
 #include <string>
 
 namespace ftl {
-    [[noreturn]] inline void panic(const char *error) {
-        std::cerr << error << std::endl;
-        exit(1);
-    }
-
-    template<typename T>
-    struct PhantomData {
-        bool operator==(const PhantomData &) { return true; }
-    };
-
-    struct str {
-        using value_type = const char;
-        using iterator = const char *;
-        using reverse_iterator = const char *;
-        using size_type = size_t;
-
-        constexpr str(const char *begin, size_type size) :
-            begin_iter(begin),
-            end_iter(begin + size) {}
-        constexpr str(const char *begin) :
-            begin_iter(begin),
-            end_iter(begin + std::char_traits<char>::length(begin)) {}
-
-        constexpr iterator cbegin() { return this->begin_iter; }
-        constexpr iterator cend() { return this->end_iter; }
-
-        constexpr reverse_iterator crbegin() { return this->begin_iter; }
-        constexpr reverse_iterator crend() { return this->end_iter; }
-
-        constexpr size_type len() const { return end_iter - begin_iter; }
-
-        constexpr value_type &operator[](size_type idx) const {
-            return begin_iter[idx];
-        }
-
-        bool operator==(const str &other) const {
-            return len() == other.len()
-               and !memcmp(begin_iter, other.begin_iter, len());
-        }
-        bool operator==(const char *other) const {
-            return other[len()] == '\0'
-               and !memcmp(begin_iter, other, len());
-        }
-
-        friend std::ostream &operator<<(std::ostream &out, const str &self) {
-            return out.write(self.begin_iter, self.len());
-        }
-        friend std::string &operator+=(std::string &string, const str &self) {
-            return string.append(self.begin_iter, self.len());
-        }
-    private:
-        iterator begin_iter;
-        iterator end_iter;
-    };
-
     template<typename T = void, typename E = void>
     struct
     [[nodiscard("`Result` may be an `Err` variant, which should be handled")]]
@@ -80,6 +28,16 @@ namespace ftl {
     constexpr Result<T, void> Ok(T);
     template<typename E>
     constexpr Result<void, E> Err(E);
+
+    [[noreturn]] inline void panic(const char *error) noexcept {
+        std::cerr << error << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    template<typename T>
+    struct PhantomData {
+        bool operator==(const PhantomData &) { return true; }
+    };
 
     template<>
     struct Result<> {
@@ -106,8 +64,7 @@ namespace ftl {
     // Infallible
     template<typename T>
     struct Result<T, void> : Result<> {
-        constexpr static Tag tag = Tag::Ok;
-        T ok;
+        Result(T ok) : Result<> { Tag::Ok }, ok(ok) { }
 
         auto map(auto op) -> Result<decltype(op(std::declval<T>())), void> {
             return Ok(op(ok));
@@ -115,6 +72,8 @@ namespace ftl {
         T unwrap() {
             return ok;
         }
+
+        T ok;
     };
 
     template<typename E>
@@ -128,11 +87,8 @@ namespace ftl {
         ~Result() {
             if (is_err()) err.~E();
         }
-        friend constexpr Result Err<E>(E err) {
-            Result temp(Result<>{ Result<>::Tag::Err });
-            temp.err = err;
-            return temp;
-        }
+        friend constexpr Result Err<E>(E err);
+
         void unwrap() {
             if (is_err()) panic("Tried to unwrap an `Err` variant");
         }
@@ -179,6 +135,12 @@ namespace ftl {
             Result<> { Tag::Err },
             err(err) {}
     };
+    template<typename E>
+    constexpr Result<void, E> Err(E err) {
+        Result<void, E> temp(Result<>{ Result<>::Tag::Err });
+        new (&temp.err) E(err);
+        return temp;
+    }
 
     template<typename T, typename E>
     struct Result : Result<> {
@@ -279,7 +241,7 @@ namespace ftl {
 
     template<typename T>
     constexpr Result<T, void> Ok(T ok)  {
-        return Result<T, void> { .ok = ok };
+        return Result<T, void>(ok);
     }
     constexpr Result<> Ok()  {
         return Result<> { Result<>::Tag::Ok };
@@ -317,12 +279,8 @@ namespace ftl {
         ~Option() {
             if (is_some()) some.~T();
         }
+        friend constexpr Option Some<T>(T);
 
-        friend constexpr Option Some<T>(T some)  {
-            Option temp(Option<> { Option<>::Tag::Some });
-            new (&temp.some) T(some);
-            return temp;
-        }
         T &unwrap() {
             if (is_some()) return some;
             panic("Tried to unwrap a None option");
@@ -363,7 +321,7 @@ namespace ftl {
             }
             return out;
         }
-    private:
+    protected:
         union {
             T some;
         };
@@ -375,10 +333,130 @@ namespace ftl {
             Option<std::reference_wrapper<T>>(std::move(temp)) {}
         constexpr Option(Option<> &&temp) :
             Option<std::reference_wrapper<T>>(std::move(temp)) {}
+
+        friend constexpr Option Some<T &>(T &);
     };
 
+    template<typename T>
+    constexpr Option<T> Some(T some)  {
+        Option<T> temp(Option<> { Option<>::Tag::Some });
+        new (&temp.some) T(some);
+        return temp;
+    }
     constexpr Option<> None()  {
         return Option<> { Option<>::Tag::None };
+    }
+
+    // TODO: add a bunch of concept checks like Ord and stuff
+    template<typename Idx>
+    struct Range {
+        constexpr Range(Idx start_idx, Idx end_idx) :
+            start_idx(start_idx),
+            end_idx(end_idx) {}
+        struct iterator {
+            constexpr iterator(Idx index) : index(index) {}
+
+            constexpr Idx operator*() { return index; }
+            constexpr bool operator==(const iterator &other) const {
+                return index == other.index;
+            }
+            constexpr iterator operator++() {
+                return ++index;
+            }
+            constexpr operator Idx() {
+                return index;
+            }
+        private:
+            Idx index;
+        };
+
+        constexpr iterator begin() const { return start_idx; }
+        constexpr iterator end() const { return end_idx; }
+
+        constexpr Idx count() const { return end_idx - start_idx; }
+    private:
+        Idx start_idx;
+        Idx end_idx;
+    };
+
+    Range(const int, const int) -> Range<size_t>;
+
+    template<typename T>
+    struct Slice {
+        using value_type = T;
+
+        using iterator = T *;
+        using const_iterator = const T *;
+        using reverse_iterator = std::reverse_iterator<iterator>;
+        using const_reverse_iterator = const reverse_iterator;
+
+        using size_type = size_t;
+
+        constexpr Slice(std::initializer_list<T> values) :
+            data(values.begin()),
+            length(values.size()) {}
+        constexpr Slice(T *data, size_type length) :
+            data(data),
+            length(length) {}
+        template<size_type N>
+        constexpr Slice(const T (&data)[N]) :
+            data(data),
+            length(N) {}
+        constexpr Slice(const Slice &) = default;
+
+        constexpr iterator begin() { return data; }
+        constexpr const_iterator cbegin() const { return data; }
+        constexpr iterator end() { return data + length; }
+        constexpr const_iterator cend() const { return data + length; }
+
+        constexpr iterator rbegin() { return data; }
+        constexpr const_iterator crbegin() const { return data + length; }
+        constexpr iterator rend() { return data; }
+        constexpr const_iterator crend() const { return data + length; }
+
+        value_type *as_ptr() { return data; }
+        constexpr size_type len() const { return length; }
+
+        constexpr Option<const value_type &> get(size_type idx) const {
+            if (idx >= length) return None();
+            return Some<const value_type &>(data[idx]);
+        }
+        constexpr Option<value_type &> get_mut(size_type idx) {
+            if (idx >= length) return None();
+            return Some(data[idx]);
+        }
+        constexpr value_type &operator[](size_type idx) const {
+            return data[idx];
+        }
+        constexpr Slice operator[](const Range<size_type> &range) const {
+            return {data + range.begin(), range.count()};
+        }
+
+        template<typename Tu>
+        bool operator==(const Slice<Tu> &other) const {
+            return len() == other.len()
+               and !memcmp(cbegin(), other.cbegin(), len());
+        }
+        template<size_type N>
+        bool operator==(const T (&other)[N]) const {
+            return len() == N
+               and !memcmp(cbegin(), other, N);
+        }
+    private:
+        value_type *data;
+        size_type length;
+    };
+
+    template<typename T>
+    Slice(std::initializer_list<T>) -> Slice<const T>;
+
+    using str = Slice<const char>;
+
+    inline std::ostream &operator<<(std::ostream &out, const str &self) {
+        return out.write(self.cbegin(), self.len());
+    }
+    inline std::string &operator+=(std::string &string, const str &self) {
+        return string.append(self.cbegin(), self.len());
     }
 }
 
