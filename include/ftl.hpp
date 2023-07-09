@@ -590,7 +590,8 @@ namespace ftl {
         }
         template<size_type N>
         bool operator==(const char (&other)[N]) const {
-            return !memcmp(cbegin(), other, len());
+            return other[len()] == '\0'
+               and !memcmp(cbegin(), other, len());
         }
 
         friend std::string &operator+=(std::string &string, const str &self) {

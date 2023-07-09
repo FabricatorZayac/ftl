@@ -23,6 +23,7 @@ int main() {
     assert(foo == foo);
     assert(foo == str("foobar"));
     assert(foo == "foobar");
+    assert(str("foobar", 1) == "f");
 
     return 0;
 }
