@@ -15,5 +15,14 @@ int main() {
     assert(a_slice[(Range{1, 4})] == (Slice{15, 20, 25}));
     assert((a_slice[{1, 4}]) == (Slice{15, 20, 25}));
 
+    str foo = "foobar";
+    assert(foo.len() == 6);
+
+    cout << foo << endl;
+
+    assert(foo == foo);
+    assert(foo == str("foobar"));
+    assert(foo == "foobar");
+
     return 0;
 }

@@ -18,6 +18,8 @@ int main () {
     assert(opt.is_some_and([](int a){ return a == 5; }));
     assert(opt == Some(5));
 
+    cout << debug << opt << endl;
+
     assert(opt.map([](int a){ return a * 3; }) == Some(15));
     assert(opt.map([](int a){ return Foo(a); }) == Some(Foo(1)));
 
@@ -38,6 +40,6 @@ int main () {
                 cout << "opt else run" << endl;
                 return "kek";
             }) == Err("kek"));
-    
+
     return 0;
 }

@@ -1,6 +1,7 @@
 #ifndef FTL_H_
 #define FTL_H_
 
+#include <concepts>
 #include <cstddef>
 #include <cstring>
 #include <functional>
@@ -9,6 +10,74 @@
 #include <iterator>
 #include <ostream>
 #include <string>
+#include <vector>
+
+namespace ftl::concepts {
+    template<typename T>
+    concept Display = requires(T t, std::ostream &out) {
+        { out << t } -> std::same_as<std::ostream &>;
+    };
+}
+
+#define IMPL_DEBUG_PRIMITIVE(T)                                 \
+inline std::ostream &operator<<(Debug &&debug, const T &self) { \
+    return debug.out << self;                                   \
+}
+
+namespace ftl {
+    struct dummy;
+}
+
+namespace ftl {
+    struct Debug {
+        std::ostream &out;
+    };
+    static Debug debug{std::cout};
+    inline Debug operator<<(std::ostream &out, Debug &) {
+        return Debug{out};
+    }
+    
+    IMPL_DEBUG_PRIMITIVE(char);
+    IMPL_DEBUG_PRIMITIVE(unsigned char);
+
+    IMPL_DEBUG_PRIMITIVE(short);
+    IMPL_DEBUG_PRIMITIVE(int);
+    IMPL_DEBUG_PRIMITIVE(long);
+    IMPL_DEBUG_PRIMITIVE(long long);
+
+    IMPL_DEBUG_PRIMITIVE(unsigned short);
+    IMPL_DEBUG_PRIMITIVE(unsigned int);
+    IMPL_DEBUG_PRIMITIVE(unsigned long);
+    IMPL_DEBUG_PRIMITIVE(unsigned long long);
+
+    IMPL_DEBUG_PRIMITIVE(float);
+    IMPL_DEBUG_PRIMITIVE(double);
+    IMPL_DEBUG_PRIMITIVE(long double);
+
+    inline std::ostream &operator<<(Debug &&debug, const bool &self) {
+        return debug.out << (self ? "true" : "false");
+    }
+    inline std::ostream &operator<<(Debug &&debug, const char *self) {
+        return debug.out << '"' << self << '"';
+    }
+
+    namespace concepts {
+        template<typename T>
+        concept Debug = requires(T t, ftl::Debug debug, std::ostream &out) {
+            { out << debug << t } -> std::same_as<std::ostream &>; 
+        };
+    }
+
+    template<concepts::Debug T>
+    inline std::ostream &operator<<(Debug &&debug, const std::vector<T> &self) {
+        if (self.size() == 0) return debug.out << "[]";
+        debug.out << '[' << debug << self[0];
+        for (typename std::vector<T>::size_type i = 1; i < self.size(); i++) {
+            debug.out << ", " << debug << self[i];
+        }
+        return debug.out << ']';
+    }
+}
 
 namespace ftl {
     template<typename T = void, typename E = void>
@@ -28,7 +97,9 @@ namespace ftl {
     constexpr Result<T, void> Ok(T);
     template<typename E>
     constexpr Result<void, E> Err(E);
+}
 
+namespace ftl {
     [[noreturn]] inline void panic(const char *error) noexcept {
         std::cerr << error << std::endl;
         exit(EXIT_FAILURE);
@@ -59,11 +130,16 @@ namespace ftl {
                 return out << "Err";
             }
         }
+        friend std::ostream &operator<<(Debug &&debug, const Result &self) {
+            return debug.out << self.tag;
+        }
     };
 
     // Infallible
     template<typename T>
     struct Result<T, void> : Result<> {
+        T ok;
+
         Result(T ok) : Result<> { Tag::Ok }, ok(ok) { }
 
         auto map(auto op) -> Result<decltype(op(std::declval<T>())), void> {
@@ -73,7 +149,9 @@ namespace ftl {
             return ok;
         }
 
-        T ok;
+        friend std::ostream &operator<<(Debug &&debug, const Result &self) {
+            return debug.out << self.tag << '(' << debug << self.ok << ')';
+        }
     };
 
     template<typename E>
@@ -126,6 +204,11 @@ namespace ftl {
 
         friend std::ostream &operator<<(std::ostream &out, Result self) {
             return out << self.tag << '(' << self.err << ')';
+        }
+        friend std::ostream &operator<<(Debug &&debug, const Result &self) {
+            debug.out << self.tag << '(';
+            if (self.is_err()) debug.out << debug << self.err;
+            return debug.out << ')';
         }
     private:
         union {
@@ -224,6 +307,12 @@ namespace ftl {
                 return out << self.err << ')';
             }
         }
+        friend std::ostream &operator<<(Debug &&debug, const Result &self) {
+            debug.out << self.tag << '(';
+            if (self.is_ok()) debug.out << debug << self.ok;
+            else debug.out << debug << self.err;
+            return debug.out << ')';
+        }
     private:
         union {
             T ok;
@@ -267,6 +356,9 @@ namespace ftl {
                 return out << "None";
             }
         }
+        friend std::ostream &operator<<(Debug &&debug, const Option &self) {
+            return debug.out << self.tag;
+        }
     };
     template<typename T>
     struct Option : Option<> {
@@ -274,8 +366,8 @@ namespace ftl {
             Option<> { temp } {}
         constexpr Option(const Option &other) :
             Option<> { other.tag } {
-                if (is_some()) some = other.some;
-            }
+            if (is_some()) some = other.some;
+        }
         ~Option() {
             if (is_some()) some.~T();
         }
@@ -285,7 +377,7 @@ namespace ftl {
             if (is_some()) return some;
             panic("Tried to unwrap a None option");
         }
-        bool is_some_and(std::function<bool(const T&)> f) {
+        bool is_some_and(std::function<bool(const T &)> f) {
             return is_some() && f(some);
         }
 
@@ -313,19 +405,27 @@ namespace ftl {
             return (is_none() && other.is_none())
                 or (is_some() && other.is_some() && some == other.some);
         }
-
-        friend std::ostream &operator<<(std::ostream &out, Option &&self) {
-            out << self.tag;
-            if (self.is_some()) {
-                out << '(' << self.unwrap() << ')';
-            }
-            return out;
-        }
     protected:
         union {
             T some;
         };
     };
+    template<concepts::Debug T>
+    inline std::ostream &operator<<(Debug &&debug, Option<T> &self) {
+        debug.out << self.tag;
+        if (self.is_some()) {
+            debug.out << '(' << debug << self.unwrap() << ')';
+        }
+        return debug.out;
+    }
+    template<concepts::Debug T>
+    inline std::ostream &operator<<(Debug &&debug, Option<T> &&self) {
+        debug.out << self.tag;
+        if (self.is_some()) {
+            debug.out << '(' << debug << self.unwrap() << ')';
+        }
+        return debug.out;
+    }
 
     template<typename T>
     struct Option<T &> : Option<std::reference_wrapper<T>> {
@@ -448,10 +548,21 @@ namespace ftl {
             return len() == N
                and !memcmp(cbegin(), other, N);
         }
+
     private:
         value_type *data;
         size_type length;
     };
+
+    template<concepts::Debug T>
+    inline std::ostream &operator<<(Debug &&debug, const Slice<T> &self) {
+        if (self.len() == 0) return debug.out << "[]";
+        debug.out << '[' << self[0];
+        for (typename Slice<T>::size_type i = 1; i < self.len(); i++) {
+            debug.out << ", " << self[i];
+        }
+        return debug.out << ']';
+    }
 
     template<typename T>
     Slice(std::initializer_list<T>) -> Slice<const T>;
@@ -472,11 +583,16 @@ namespace ftl {
             return other[len()] == '\0'
                and !memcmp(cbegin(), other, N);
         }
-        friend std::ostream &operator<<(std::ostream &out, const str &self) {
-            return out.write(self.cbegin(), self.len());
-        }
+
         friend std::string &operator+=(std::string &string, const str &self) {
             return string.append(self.cbegin(), self.len());
+        }
+
+        friend std::ostream &operator<<(Debug &&debug, const str &self) {
+            return debug.out << '"' << self << '"';
+        }
+        friend std::ostream &operator<<(std::ostream &out, const str &self) {
+            return out.write(self.cbegin(), self.len());
         }
     };
 }
