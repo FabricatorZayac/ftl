@@ -12,6 +12,7 @@ int main () {
          << debug << "kekw" << endl
          << debug << str("foobar") << endl
          << debug << Slice{5, 69, 420} << endl
+         << debug << (double[]){5.5, 6.9} << endl
          << debug << Some(5) << endl
          << debug << None() << endl
          << debug << Ok("stuff") << endl

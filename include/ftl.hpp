@@ -68,6 +68,16 @@ namespace ftl {
         };
     }
 
+    template<concepts::Debug T, size_t N>
+    std::ostream &operator<<(Debug &&debug, const T (&self)[N]) {
+        if (N == 0) return debug.out << "[]";
+        debug.out << '[' << self[0];
+        for (size_t i = 1; i < N; i++) {
+            debug.out << ", " << self[i];
+        }
+        return debug.out << ']';
+        
+    }
     template<concepts::Debug T>
     inline std::ostream &operator<<(Debug &&debug, const std::vector<T> &self) {
         if (self.size() == 0) return debug.out << "[]";
