@@ -36,7 +36,7 @@ namespace ftl {
     inline Debug operator<<(std::ostream &out, Debug &) {
         return Debug{out};
     }
-    
+
     IMPL_DEBUG_PRIMITIVE(char);
     IMPL_DEBUG_PRIMITIVE(unsigned char);
 
@@ -71,12 +71,11 @@ namespace ftl {
     template<concepts::Debug T, size_t N>
     std::ostream &operator<<(Debug &&debug, const T (&self)[N]) {
         if (N == 0) return debug.out << "[]";
-        debug.out << '[' << self[0];
+        debug.out << '[' << debug << self[0];
         for (size_t i = 1; i < N; i++) {
-            debug.out << ", " << self[i];
+            debug.out << ", " << debug << self[i];
         }
         return debug.out << ']';
-        
     }
     template<concepts::Debug T>
     inline std::ostream &operator<<(Debug &&debug, const std::vector<T> &self) {
@@ -152,10 +151,10 @@ namespace ftl {
 
         Result(T ok) : Result<> { Tag::Ok }, ok(ok) { }
 
-        auto map(auto op) -> Result<decltype(op(std::declval<T>())), void> {
+        auto map(auto op) -> Result<decltype(op(std::declval<T>())), void> const {
             return Ok(op(ok));
         }
-        T unwrap() {
+        T unwrap() const {
             return ok;
         }
 
@@ -535,13 +534,16 @@ namespace ftl {
 
         constexpr Option<const value_type &> get(size_type idx) const {
             if (idx >= length) return None();
-            return Some<const value_type &>(data[idx]);
+            return Some(std::ref(data[idx]));
         }
         constexpr Option<value_type &> get_mut(size_type idx) {
             if (idx >= length) return None();
-            return Some(data[idx]);
+            return Some(std::ref(data[idx]));
         }
         constexpr value_type &operator[](size_type idx) const {
+            return data[idx];
+        }
+        constexpr value_type &operator[](size_type idx) {
             return data[idx];
         }
         constexpr Slice operator[](const Range<size_type> &range) const {
@@ -551,12 +553,12 @@ namespace ftl {
         template<typename Tu>
         bool operator==(const Slice<Tu> &other) const {
             return len() == other.len()
-               and !memcmp(cbegin(), other.cbegin(), len());
+               and !memcmp(cbegin(), other.cbegin(), len() * sizeof(value_type));
         }
         template<size_type N>
         bool operator==(const T (&other)[N]) const {
             return len() == N
-               and !memcmp(cbegin(), other, N);
+               and !memcmp(cbegin(), other, N * sizeof(value_type));
         }
 
     private:
