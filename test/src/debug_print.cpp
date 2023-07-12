@@ -1,4 +1,6 @@
 #include "ftl.hpp"
+#include <cstddef>
+#include <string>
 #include <vector>
 
 using namespace std;
@@ -7,11 +9,12 @@ using namespace ftl;
 int main () {
     // println!("{:?}", value);
     cout << debug << vector{4, 3, 2, 69} << endl
+         << debug << string("std::string") << endl
          << debug << 5 << endl
          << debug << 5.2 << endl
          << debug << true << endl
-         << debug << "kekw" << endl
-         << debug << str("foobar") << endl
+         << debug << "kekw literal" << endl
+         << debug << str("str slice") << endl
          << debug << Slice{5, 69, 420} << endl
          << debug << (double[]){5.5, 6.9} << endl
          << debug << Some(5) << endl

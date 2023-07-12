@@ -57,7 +57,10 @@ namespace ftl {
     inline std::ostream &operator<<(Debug &&debug, const bool &self) {
         return debug.out << (self ? "true" : "false");
     }
-    inline std::ostream &operator<<(Debug &&debug, const char *self) {
+    inline std::ostream &operator<<(Debug &&debug, const char (&self)[]) {
+        return debug.out << '"' << self << '"';
+    }
+    inline std::ostream &operator<<(Debug &&debug, const std::string &self) {
         return debug.out << '"' << self << '"';
     }
 
