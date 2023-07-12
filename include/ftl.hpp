@@ -1,6 +1,7 @@
 #ifndef FTL_H_
 #define FTL_H_
 
+#include <array>
 #include <concepts>
 #include <cstddef>
 #include <cstring>
@@ -73,6 +74,15 @@ namespace ftl {
 
     template<concepts::Debug T, size_t N>
     std::ostream &operator<<(Debug &&debug, const T (&self)[N]) {
+        if (N == 0) return debug.out << "[]";
+        debug.out << '[' << debug << self[0];
+        for (size_t i = 1; i < N; i++) {
+            debug.out << ", " << debug << self[i];
+        }
+        return debug.out << ']';
+    }
+    template<concepts::Debug T, size_t N>
+    std::ostream &operator<<(Debug &&debug, const std::array<T, N> &self) {
         if (N == 0) return debug.out << "[]";
         debug.out << '[' << debug << self[0];
         for (size_t i = 1; i < N; i++) {

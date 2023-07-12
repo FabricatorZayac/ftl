@@ -9,6 +9,7 @@ using namespace ftl;
 int main () {
     // println!("{:?}", value);
     cout << debug << vector{4, 3, 2, 69} << endl
+         << debug << array{6.9, 20.4} << endl
          << debug << string("std::string") << endl
          << debug << 5 << endl
          << debug << 5.2 << endl
