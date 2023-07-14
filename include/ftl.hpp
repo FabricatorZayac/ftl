@@ -11,6 +11,7 @@
 #include <iterator>
 #include <ostream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace ftl::concepts {
@@ -91,13 +92,27 @@ namespace ftl {
         return debug.out << ']';
     }
     template<concepts::Debug T>
-    inline std::ostream &operator<<(Debug &&debug, const std::vector<T> &self) {
+    std::ostream &operator<<(Debug &&debug, const std::vector<T> &self) {
         if (self.size() == 0) return debug.out << "[]";
         debug.out << '[' << debug << self[0];
         for (typename std::vector<T>::size_type i = 1; i < self.size(); i++) {
             debug.out << ", " << debug << self[i];
         }
         return debug.out << ']';
+    }
+    template<concepts::Debug K, concepts::Debug V>
+    std::ostream &operator<<(Debug &&debug, const std::unordered_map<K, V> &self) {
+        if (self.size() == 0) return debug.out << "{}";
+        debug.out << '{';
+        bool first = true;
+        for (auto &[k, v] : self) {
+            if (!first) {
+                debug.out << ", ";
+            }
+            debug.out << debug << k << ": " << debug << v;
+            first = false;
+        }
+        return debug.out << '}';
     }
 }
 
