@@ -33,11 +33,17 @@ struct Bar {
     }
 };
 
+Result<Option<double>, str> optional_div(double a, double b) {
+    if (b == 0) return Err(str("div by zero"));
+    if (a > b) return Ok(Some(a / b));
+    return Ok(None());
+}
+
 int main() {
     Result<double, str> res = checked_div(5, 2);
     assert(res.is_ok_and([](double a){ return a == 2.5; }));
     assert(res == Ok(2.5));
-    assert(res.map([](double a){ return a * 4; }) == Ok(10));
+    assert(res.map([](double a){ return a * 4; }) == Ok(10.));
 
     res = checked_div(5, 0);
     assert(res.is_err_and([](str a){ return a == "div by zero"; }));
@@ -60,6 +66,18 @@ int main() {
     assert(bar.a == 7);
 
     assert(Ok(5).map([](int a){ return a * 2; }).unwrap() == 10);
+
+    auto res_opt = optional_div(1, 2);
+    assert(res_opt == Ok(None()));
+    cout << debug << res_opt << endl;
+    res_opt = optional_div(2, 0);
+    cout << debug << res_opt << endl;
+    res_opt = optional_div(5, 2);
+    // Should print Ok(Some(2.5)), but prints just Ok(Some)
+    cout << debug << res_opt << endl;
+
+    auto opt = res_opt.unwrap();
+    cout << debug << opt << endl;
 
     return 0;
 }

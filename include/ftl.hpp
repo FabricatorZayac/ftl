@@ -249,14 +249,15 @@ namespace ftl {
 
     template<typename T, typename E>
     struct Result : Result<> {
-        constexpr Result(Result<T, void> &&temp) :
-            Result<>{ temp.tag },
-            ok(temp.ok) { }
-        constexpr Result(Result<void, E> &&temp) :
+        template<typename U>
+        Result(Result<U, void> &&other) :
+            Result<>{other.tag},
+            ok(other.ok) { }
+        Result(Result<void, E> &&temp) :
             Result<>{ temp.tag },
             err(temp.unwrap_err()) { }
-        constexpr Result(const Result &other) :
-            Result<> {other.tag} {
+        Result(const Result &other) :
+            Result<>{other.tag} {
             switch (tag) {
             case Tag::Ok:
                 new (&ok) T(other.ok);
@@ -312,7 +313,8 @@ namespace ftl {
             return (is_ok() && other.is_ok())
                 or (is_err() && other.is_err_and([&](const E &a){ return err == a; }));
         }
-        bool operator==(const Result<T, void> &other) const {
+        template<typename U>
+        bool operator==(const Result<U, void> &other) const {
             return is_ok() && ok == other.ok;
         }
         bool operator==(const Result<T, E> &other) const {
@@ -384,7 +386,7 @@ namespace ftl {
     };
     template<typename T>
     struct Option : Option<> {
-        constexpr Option(Option<> &&temp) :
+        constexpr Option(const Option<> &temp) :
             Option<> { temp } {}
         constexpr Option(const Option &other) :
             Option<> { other.tag } {
@@ -399,7 +401,7 @@ namespace ftl {
             if (is_some()) return some;
             panic("Tried to unwrap a None option");
         }
-        bool is_some_and(std::function<bool(const T &)> f) {
+        bool is_some_and(std::function<bool(const T &)> f) const {
             return is_some() && f(some);
         }
 
@@ -423,9 +425,10 @@ namespace ftl {
         bool operator==(const Option<> &other) const {
             return is_none() && other.is_none();
         }
-        bool operator==(const Option &other) const {
+        template<typename U>
+        bool operator==(const Option<U> &other) const {
             return (is_none() && other.is_none())
-                or (is_some() && other.is_some() && some == other.some);
+                or (is_some() && other.is_some_and([&](const T &a){ return some == a; }));
         }
     protected:
         union {
