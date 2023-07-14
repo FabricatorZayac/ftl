@@ -601,6 +601,8 @@ namespace ftl {
         template<size_type N>
         constexpr str(const char (&data)[N]) :
             Slice<const char>(data, N - 1) {}
+        str(const std::string &string) :
+            Slice<const char>(string.data(), string.length()) {}
 
         bool operator==(const str &other) const {
             return len() == other.len()

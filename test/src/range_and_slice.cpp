@@ -25,5 +25,10 @@ int main() {
     assert(foo == "foobar");
     assert(str("foobar", 1) == "f");
 
+    string kek = "kekw";
+    str kek_slice = kek;
+    assert(kek_slice.len() == 4);
+    assert(kek_slice == "kekw");
+
     return 0;
 }
