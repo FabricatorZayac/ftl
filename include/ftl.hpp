@@ -388,6 +388,9 @@ namespace ftl {
         bool is_none() const {
             return tag == Tag::None;
         }
+        operator bool() {
+            return is_some();
+        }
         friend std::ostream &operator<<(std::ostream &out, const Tag &self) {
             switch (self) {
             case Tag::Some:

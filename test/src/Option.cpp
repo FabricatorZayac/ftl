@@ -42,6 +42,8 @@ int main () {
             }) == Err("kek"));
 
     assert(Some(5) == Some(5.));
+    assert(Some(10));
+    assert(!None());
 
     return 0;
 }
