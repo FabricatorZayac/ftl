@@ -406,7 +406,7 @@ namespace ftl {
             Option<> { temp } {}
         constexpr Option(const Option &other) :
             Option<> { other.tag } {
-            if (is_some()) some = other.some;
+            if (is_some()) new (&some) T(other.some); 
         }
         ~Option() {
             if (is_some()) some.~T();
