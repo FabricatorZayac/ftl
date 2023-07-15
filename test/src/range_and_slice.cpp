@@ -15,6 +15,9 @@ int main() {
     assert(a_slice[(Range{1, 4})] == (Slice{15, 20, 25}));
     assert((a_slice[{1, 4}]) == (Slice{15, 20, 25}));
 
+    vector a_owned = a_slice.to_owned();
+    cout << debug << a_owned << endl;
+
     str foo = "foobar";
     assert(foo.len() == 6);
 
@@ -29,6 +32,9 @@ int main() {
     str kek_slice = kek;
     assert(kek_slice.len() == 4);
     assert(kek_slice == "kekw");
+
+    string foo_owned = foo.to_owned();
+    assert(foo_owned == "foobar");
 
     return 0;
 }

@@ -11,6 +11,7 @@
 #include <iterator>
 #include <ostream>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <vector>
 
@@ -562,6 +563,9 @@ namespace ftl {
 
         value_type *as_ptr() { return data; }
         constexpr size_type len() const { return length; }
+        std::vector<std::remove_cv_t<value_type>> to_owned() {
+            return {cbegin(), cend()};
+        }
 
         constexpr Option<const value_type &> get(size_type idx) const {
             if (idx >= length) return None();
@@ -591,6 +595,10 @@ namespace ftl {
             return len() == N
                and !memcmp(cbegin(), other, N * sizeof(value_type));
         }
+        // bool operator==(const std::vector<T> &other) const {
+        //     return len() == other.size()
+        //        and !memcmp(cbegin(), other.cbegin(), len());
+        // }
 
     private:
         value_type *data;
@@ -610,6 +618,12 @@ namespace ftl {
     template<typename T>
     Slice(std::initializer_list<T>) -> Slice<const T>;
 
+    // Just realized this is wrong, because this should be `const str` and `str`
+    // should be `Slice<char>`. Idk how to do that tho, because const qualifier
+    // doesn't count as a specialization. You don't need mutable string slices
+    // often, but damn
+    //
+    // One idea is that I need another template as a wrapper or something.
     struct str : Slice<const char> {
         constexpr str(const char *data, size_type length) :
             Slice<const char>(data, length) {}
@@ -618,6 +632,10 @@ namespace ftl {
             Slice<const char>(data, N - 1) {}
         str(const std::string &string) :
             Slice<const char>(string.data(), string.length()) {}
+
+        std::string to_owned() {
+            return {cbegin(), len()};
+        }
 
         bool operator==(const str &other) const {
             return len() == other.len()
